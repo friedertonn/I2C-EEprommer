@@ -1,0 +1,997 @@
+
+ 
+AC1 U880 Assembler - Source Listing
+ 
+2000          0010        ORG  #2000
+              0020 ;
+              0030 ; EEPROMMER 256 Byte - 32 KByte
+              0040 ; Stand: 5.8.2005 / 24.4.2023
+              0050 ;
+              0060 ; Vereinbarungen
+              0070 ;
+2000 07FD     0080 GETCO  EQU  #07FD       ;Monitor AC1
+2000 019A     0090 OUTHL  EQU  #019A       ;HL in Hex auf BS
+2000 0183     0100 OUTHEX EQU  #0183       ;A als 2 st. HEXzahl
+2000 0172     0110 INHEX  EQU  #0172       ;4xASCII nach HL
+2000 1800     0120 KURSOR EQU  #1800       ;Kursorposition
+              0130 ;
+2000 1808     0140        JR   START
+              0150 ;
+              0160 ; Merkzellen
+              0170 ;
+2002 50       0180 EEADR  DEFB #50         ;EEprom Adresse
+2003 00       0190 EENWT  DEFB 0           ;NWT Byte EEprom
+2004 00       0200 EEHWT  DEFB 0           ;HWT Byte EEprom
+2005 0000     0210 RAM    DEFW 0           ;RAM-Adr. fuer RD/WR
+2007 40       0220 BYTPG  DEFB 64          ;Anz. Bytes pro Page
+2008 0002     0230 PGCNT  DEFW 512         ;Page-Couter
+              0240 ;
+              0250 ; Hauptmenue
+              0260 ;
+200A DF       0270 START  RST  #18
+200B 0D0D     0280        DEFB #0D,#0D
+200D 45204520 0290        DEFM "E E P R O M M E R"
+     50205220
+     4F204D20
+     4D204520
+     52
+201E 20203235 0300        DEFM "  256 Byte - 32 KByte"
+     36204279
+     7465202D
+     20333220
+     4B427974
+     65
+2033 20205631 0310        DEFM "  V1.3"
+     2E33
+2039 0D0D     0320        DEFB #0D,#0D
+203B 2D2D3E20 0330        DEFM "--> aktuelle EEPROM-Adresse:"
+     616B7475
+     656C6C65
+     20454550
+     524F4D2D
+     41647265
+     7373653A
+2057 A0       0340        DEFB #A0
+2058 3A0220   0350        LD   A,(EEADR)
+205B CD8301   0360        CALL OUTHEX
+205E DF       0370        RST  #18
+205F 68       0380        DEFM "h"
+2060 0D0D     0390        DEFB #0D,#0D
+2062 4C203D20 0400        DEFM "L = Lesen"
+     4C657365
+     6E
+206B 0D       0410        DEFB #0D
+206C 53203D20 0420        DEFM "S = Schreiben"
+     53636872
+     65696265
+     6E
+2079 0D       0430        DEFB #0D
+207A 56203D20 0440        DEFM "V = Vergleich"
+     56657267
+     6C656963
+     68
+2087 0D       0450        DEFB #0D
+2088 44203D20 0460        DEFM "D = Hexdump"
+     48657864
+     756D70
+2093 0D       0470        DEFB #0D
+2094 50203D20 0480        DEFM "P = Port-Scan"
+     506F7274
+     2D536361
+     6E
+20A1 0D       0490        DEFB #0D
+20A2 51203D20 0500        DEFM "Q = Ende"
+     456E6465
+20AA 0D0D     0510        DEFB #0D,#0D
+20AC 284C2F53 0520        DEFM "(L/S/V/D/P/Q):"
+     2F562F44
+     2F502F51
+     293A
+20BA A0       0530        DEFB #A0
+20BB CF       0540        RST  #08         ;Tastaturabfrage
+20BC CBAF     0550        RES  5,A         ;Upcase
+20BE D7       0560        RST  #10         ;A auf Bildschirm
+20BF FE4C     0570        CP   "L          ;Lesen
+20C1 CA0C21   0580        JP   Z,READ
+20C4 FE53     0590        CP   "S          ;Schreiben
+20C6 CA5722   0600        JP   Z,WRITE
+20C9 FE56     0610        CP   "V          ;Vergleich
+20CB CAE520   0620        JP   Z,VERIFY
+20CE FE44     0630        CP   "D          ;Dump anzeigen
+20D0 CAA325   0640        JP   Z,DUMP
+20D3 FE50     0650        CP   "P          ;Port-Scan
+20D5 CA9F23   0660        JP   Z,SCAN
+20D8 FE51     0670        CP   "Q          ;zum Monitor
+20DA CA0B26   0680        JP   Z,QUIT
+20DD FE03     0690        CP   3           ;Ctrl-C
+20DF CA1026   0700        JP   Z,QUIT1
+20E2 C30A20   0710        JP   START       ;Falscheingabe
+              0720 ;
+              0730 ; EEprom Vergleich
+              0740 ;
+20E5 DF       0750 VERIFY RST  #18
+20E6 6572676C 0760        DEFM "ergleich"
+     65696368
+20EE A0       0770        DEFB #A0
+20EF CD3E26   0780        CALL INIT        ;Init. PIO + I2C-Bus
+20F2 DF       0790        RST  #18
+20F3 0D0D     0800        DEFB #0D,#0D
+20F5 45455052 0810        DEFM "EEPROMVERGLEICH"
+     4F4D5645
+     52474C45
+     494348
+2104 0D8D     0820        DEFB #0D,#8D
+2106 FD210100 0830        LD   IY,1        ;IY = Fehlerzaehler
+210A 181D     0840        JR   READ2
+              0850 ;
+              0860 ; EEprom Lesen
+              0870 ;
+210C DF       0880 READ   RST  #18
+210D 6573656E 0890        DEFM "esen"
+2111 A0       0900        DEFB #A0
+2112 CD3E26   0910        CALL INIT        ;Init. PIO + I2C-Bus
+2115 DF       0920 READ1  RST  #18
+2116 0D0D     0930        DEFB #0D,#0D
+2118 45455052 0940        DEFM "EEPROMLESER"
+     4F4D4C45
+     534552
+2123 0D8D     0950        DEFB #0D,#8D
+2125 FD210000 0960        LD   IY,0        ;IY==0 --> READ
+2129 CD1C24   0970 READ2  CALL TYP         ;EEP-Typ eingeben
+212C FE5A     0980        CP   "Z
+212E CA0A20   0990        JP   Z,START     ;zurueck zum Hauptm.
+2131 FE31     1000        CP   "1
+2133 38E0     1010        JR   C,READ1     ;A < "1
+2135 FE3A     1020        CP   #3A
+2137 30DC     1030        JR   NC,READ1    ;A >= #3A
+2139 E60F     1040        AND  #0F
+213B 47       1050        LD   B,A
+213C 214000   1060        LD   HL,#0040
+213F 29       1070 READ3  ADD  HL,HL
+2140 10FD     1080        DJNZ READ3
+2142 44       1090        LD   B,H         ;BC = EEprom Size
+2143 4D       1100        LD   C,L
+2144 AF       1110        XOR  A
+2145 320420   1120        LD   (EEHWT),A   ;EEprom HWT
+2148 320320   1130        LD   (EENWT),A   ;EEprom NWT
+              1140 ;
+214B FD7C     1150        DEFB #FD,#7C     ;LD A,IYH
+214D FDB5     1160        DEFB #FD,#B5     ;OR IYL
+214F 200E     1170        JR   NZ,VERIF1
+2151 DF       1180        RST  #18
+2152 0D0D     1190        DEFB #0D,#0D
+2154 4C657365 1200        DEFM "Lese auf"
+     20617566
+215C A0       1210        DEFB #A0
+215D 1812     1220        JR   VERIF2
+215F DF       1230 VERIF1 RST  #18
+2160 0D0D     1240        DEFB #0D,#0D
+2162 56657267 1250        DEFM "Vergleiche mit"
+     6C656963
+     6865206D
+     6974
+2170 A0       1260        DEFB #A0
+2171 CD8C25   1270 VERIF2 CALL RAMADR      ;RAM-Adresse eing.
+              1280 ;
+2174 CD6E26   1290        CALL STARTB      ;Startbed. senden
+2177 3A0220   1300        LD   A,(EEADR)   ;EEprom Adresse
+217A CB27     1310        SLA  A           ;1x linksschieben
+217C 323C26   1320        LD   (BYTE),A
+217F CDA426   1330        CALL TXBYTE
+2182 3A3C26   1340        LD   A,(BYTE)    ;ACK ?
+2185 FE00     1350        CP   0
+2187 C22825   1360        JP   NZ,ERROR    ;EEprom nicht vorh.
+              1370 ;
+218A 78       1380        LD   A,B         ;HWT von EEprom-Size
+218B FE10     1390        CP   #10         ;EEprom < 4 KByte ?
+218D 3813     1400        JR   C,READ4
+              1410 ;
+218F 3A0420   1420        LD   A,(EEHWT)   ;HWT-Adresse
+2192 323C26   1430        LD   (BYTE),A
+2195 CDA426   1440        CALL TXBYTE
+2198 3A3C26   1450        LD   A,(BYTE)    ;ACK ?
+219B FE00     1460        CP   0
+219D 3E01     1470        LD   A,1
+219F C24C25   1480        JP   NZ,ERRORX   ;EEprom-Fehler #1
+              1490 ;
+21A2 3A0320   1500 READ4  LD   A,(EENWT)   ;NWT-Adresse
+21A5 323C26   1510        LD   (BYTE),A
+21A8 CDA426   1520        CALL TXBYTE
+21AB 3A3C26   1530        LD   A,(BYTE)    ;ACK ?
+21AE FE00     1540        CP   0
+21B0 3E02     1550        LD   A,2
+21B2 C24C25   1560        JP   NZ,ERRORX   ;EEprom-Fehler #2
+              1570 ;
+21B5 CD6E26   1580        CALL STARTB      ;Startbed. senden
+21B8 3A0220   1590        LD   A,(EEADR)   ;EEprom Adresse
+21BB CB27     1600        SLA  A           ;1x linksschieben
+21BD CBC7     1610        SET  0,A         ;READ-Befehl
+21BF 323C26   1620        LD   (BYTE),A
+21C2 CDA426   1630        CALL TXBYTE
+21C5 3A3C26   1640        LD   A,(BYTE)
+21C8 FE00     1650        CP   0
+21CA 3E03     1660        LD   A,3
+21CC C24C25   1670        JP   NZ,ERRORX   ;EEprom-Fehler #3
+              1680 ;
+21CF FD7C     1690        DEFB #FD,#7C     ;LD A,IYH
+21D1 FDB5     1700        DEFB #FD,#B5     ;OR IYL
+21D3 200D     1710        JR   NZ,VERIF3
+21D5 DF       1720        RST  #18
+21D6 20202020 1730        DEFM "    Lese:"
+     4C657365
+     3A
+21DF A0       1740        DEFB #A0
+21E0 1811     1750        JR   VERIF4
+21E2 DF       1760 VERIF3 RST  #18
+21E3 20202020 1770        DEFM "    Vergleiche:"
+     56657267
+     6C656963
+     68653A
+21F2 A0       1780        DEFB #A0
+21F3 2A0520   1790 VERIF4 LD   HL,(RAM)    ;Speicheranfang
+21F6 0B       1800 READ5  DEC  BC          ;DEC EEprom-Size
+21F7 78       1810        LD   A,B
+21F8 B1       1820        OR   C
+21F9 2004     1830        JR   NZ,READ6    ;lies 1 Byte mit ACK
+21FB 3EFF     1840        LD   A,#FF
+21FD 1801     1850        JR   READ7       ;lies 1 Byte m. NACK
+21FF AF       1860 READ6  XOR  A
+2200 323C26   1870 READ7  LD   (BYTE),A
+2203 CDF726   1880        CALL RXBYTE
+              1890 ;
+2206 FD7C     1900        DEFB #FD,#7C     ;LD A,IYH
+2208 FDB5     1910        DEFB #FD,#B5     ;OR IYL
+220A 3A3C26   1920        LD   A,(BYTE)
+220D 2003     1930        JR   NZ,VERIF5
+220F 77       1940        LD   (HL),A      ;EEprombyte zum RAM
+2210 1805     1950        JR   VERIF6
+2212 BE       1960 VERIF5 CP   (HL)        ;Vergleich mit RAM
+2213 2802     1970        JR   Z,VERIF6    ;Bytes sind gleich
+2215 FD23     1980        INC  IY          ;Fehlerzaehler ++
+2217 7D       1990 VERIF6 LD   A,L
+2218 3C       2000        INC  A
+2219 200B     2010        JR   NZ,READ8    ;L != #FF
+221B DD2A0018 2020        LD   IX,(KURSOR)
+221F CD9A01   2030        CALL OUTHL       ;RAM-Adresse anzeig.
+2222 DD220018 2040        LD   (KURSOR),IX
+2226 23       2050 READ8  INC  HL          ;RAM-Adresse +1
+2227 78       2060        LD   A,B         ;EEprom-Size = 0 ?
+2228 B1       2070        OR   C
+2229 20CB     2080        JR   NZ,READ5    ;weiterlesen
+222B CD8926   2090        CALL STOPB       ;Stopbedingung
+222E 2B       2100        DEC  HL
+222F CD9A01   2110        CALL OUTHL       ;letzte RAM-Adresse
+              2120 ;
+2232 FD7C     2130        DEFB #FD,#7C     ;LD A,IYH
+2234 FDB5     2140        DEFB #FD,#B5     ;OR IYL
+2236 CA1825   2150        JP   Z,FERTIG    ;Fertig mit Lesen
+2239 FD2B     2160        DEC  IY          ;Init.-Wert war 1
+223B FDE5     2170        PUSH IY
+223D E1       2180        POP  HL          ;HL=Anz. der Fehler
+223E 114722   2190        LD   DE,READ9    ;ASCII-String
+2241 CD4527   2200        CALL HL2DEC      ;Konvert. in ASCII
+2244 DF       2210        RST  #18
+2245 0D0D     2220        DEFB #0D,#0D
+2247 30303030 2230 READ9  DEFM "00000 Fehler"
+     30204665
+     686C6572
+2253 A0       2240        DEFB #A0
+2254 C31825   2250        JP   FERTIG      ;Fertig m. Vergleich
+              2260 ;
+              2270 ; EEprom Schreiben
+              2280 ;
+2257 DF       2290 WRITE  RST  #18
+2258 63687265 2300        DEFM "chreiben"
+     6962656E
+2260 A0       2310        DEFB #A0
+2261 CD3E26   2320        CALL INIT        ;Init. PIO + I2C-Bus
+2264 DF       2330 WRITE1 RST  #18
+2265 0D0D     2340        DEFB #0D,#0D
+2267 45455052 2350        DEFM "EEPROMSCHREIBER"
+     4F4D5343
+     48524549
+     424552
+2276 0D8D     2360        DEFB #0D,#8D
+2278 CD1C24   2370        CALL TYP
+227B FE5A     2380        CP   "Z
+227D CA0A20   2390        JP   Z,START     ;zurueck zum Hauptm.
+2280 FE31     2400        CP   "1
+2282 38E0     2410        JR   C,WRITE1    ;A < "1
+2284 FE3A     2420        CP   #3A
+2286 30DC     2430        JR   NC,WRITE1   ;A >= #3A
+              2440 ;
+2288 018000   2450        LD   BC,128      ;BC = Anz. Pages
+228B 1601     2460        LD   D,1         ;D = Bytes pro Page
+228D FE31     2470        CP   "1
+228F 2832     2480        JR   Z,WRITE2    ;128 Byte EEprom
+2291 010001   2490        LD   BC,256
+2294 FE32     2500        CP   "2
+2296 282B     2510        JR   Z,WRITE2    ;256 Byte EEprom
+2298 1602     2520        LD   D,2
+229A FE33     2530        CP   "3
+229C 2825     2540        JR   Z,WRITE2    ;512 Byte EEprom
+229E 1604     2550        LD   D,4
+22A0 FE34     2560        CP   "4
+22A2 281F     2570        JR   Z,WRITE2    ;1 KByte EEprom
+22A4 1608     2580        LD   D,8
+22A6 FE35     2590        CP   "5
+22A8 2819     2600        JR   Z,WRITE2    ;2 KByte EEprom
+22AA 018000   2610        LD   BC,128
+22AD 1620     2620        LD   D,32
+22AF FE36     2630        CP   "6
+22B1 2810     2640        JR   Z,WRITE2    ;4 KByte EEprom
+22B3 010001   2650        LD   BC,256
+22B6 FE37     2660        CP   "7
+22B8 2809     2670        JR   Z,WRITE2    ;8 KByte EEprom
+22BA 1640     2680        LD   D,64
+22BC FE38     2690        CP   "8
+22BE 2803     2700        JR   Z,WRITE2    ;16 KByte EEprom
+22C0 010002   2710        LD   BC,512      ;32 KByte EEprom
+22C3 ED430820 2720 WRITE2 LD   (PGCNT),BC  ;Page-Counter
+22C7 7A       2730        LD   A,D
+22C8 320720   2740        LD   (BYTPG),A   ;Anz. Bytes pro Page
+22CB AF       2750        XOR  A
+22CC 320420   2760        LD   (EEHWT),A   ;EEprom HWT
+22CF 320320   2770        LD   (EENWT),A   ;EEprom NWT
+              2780 ;
+22D2 DF       2790        RST  #18
+22D3 0D0D     2800        DEFB #0D,#0D
+22D5 53636872 2810        DEFM "Schreibe von"
+     65696265
+     20766F6E
+22E1 A0       2820        DEFB #A0
+22E2 CD8C25   2830        CALL RAMADR      ;RAM-Adresse eing.
+22E5 DF       2840        RST  #18
+22E6 20202020 2850        DEFM "    Schreibe:"
+     53636872
+     65696265
+     3A
+22F3 A0       2860        DEFB #A0
+22F4 CD0623   2870 WRITE3 CALL PGWR        ;Page Write
+22F7 0B       2880        DEC  BC
+22F8 78       2890        LD   A,B
+22F9 B1       2900        OR   C
+22FA 20F8     2910        JR   NZ,WRITE3
+22FC 2A0520   2920        LD   HL,(RAM)
+22FF 2B       2930        DEC  HL
+2300 CD9A01   2940        CALL OUTHL       ;letzte RAM-Adresse
+2303 C31825   2950        JP   FERTIG      ;Fertigmeldung
+              2960 ;
+              2970 ; UP Page Write
+              2980 ;
+2306 C5       2990 PGWR   PUSH BC
+2307 2A0520   3000        LD   HL,(RAM)    ;1. RAM-Zelle
+230A DD2A0018 3010        LD   IX,(KURSOR)
+230E CD9A01   3020        CALL OUTHL       ;RAM-Adresse anzeig.
+2311 DD220018 3030        LD   (KURSOR),IX
+              3040 ;
+2315 3A0420   3050        LD   A,(EEHWT)   ;HWT-Adresse
+2318 E607     3060        AND  #07         ;B0, B1, B2
+231A 5F       3070        LD   E,A         ;fuer OR mit EEADR
+231B 3A0720   3080        LD   A,(BYTPG)   ;Anz. Bytes pro Page
+231E FE09     3090        CP   9
+2320 3802     3100        JR   C,PGWR1     ;Anz. < 9
+2322 1E00     3110        LD   E,0         ;kein OR mit EEADR
+              3120 ;
+2324 0664     3130 PGWR1  LD   B,100       ;ACK polling
+2326 CD6E26   3140 PGWR2  CALL STARTB      ;Startbed. senden
+2329 3A0220   3150        LD   A,(EEADR)   ;EEprom Adresse
+232C B3       3160        OR   E           ;Verknuepf. mit HWT
+232D CB27     3170        SLA  A           ;1x linksschieben
+232F 323C26   3180        LD   (BYTE),A
+2332 CDA426   3190        CALL TXBYTE
+2335 3A3C26   3200        LD   A,(BYTE)    ;ACK ?
+2338 FE00     3210        CP   0
+233A 2806     3220        JR   Z,PGWR3     ;ACK empfangen
+233C 05       3230        DEC  B           ;Zeitschleife
+233D CA2825   3240        JP   Z,ERROR     ;EEprom nicht vorh.
+2340 18E4     3250        JR   PGWR2
+              3260 ;
+2342 3A0720   3270 PGWR3  LD   A,(BYTPG)   ;Anz. Bytes pro Page
+2345 FE09     3280        CP   9
+2347 3813     3290        JR   C,PGWR4     ;Anz. < 9 --> NWT
+              3300 ;
+2349 3A0420   3310        LD   A,(EEHWT)   ;HWT-Adresse
+234C 323C26   3320        LD   (BYTE),A
+234F CDA426   3330        CALL TXBYTE
+2352 3A3C26   3340        LD   A,(BYTE)    ;ACK ?
+2355 FE00     3350        CP   0
+2357 3E04     3360        LD   A,4
+2359 C24C25   3370        JP   NZ,ERRORX   ;EEprom-Fehler #4
+              3380 ;
+235C 3A0320   3390 PGWR4  LD   A,(EENWT)   ;NWT-Adresse
+235F 323C26   3400        LD   (BYTE),A
+2362 CDA426   3410        CALL TXBYTE
+2365 3A3C26   3420        LD   A,(BYTE)    ;ACK ?
+2368 FE00     3430        CP   0
+236A 3E05     3440        LD   A,5
+236C C24C25   3450        JP   NZ,ERRORX   ;EEprom-Fehler #5
+              3460 ;
+236F 2A0520   3470        LD   HL,(RAM)    ;akt. Speicherzelle
+2372 3A0720   3480        LD   A,(BYTPG)   ;Anz. Bytes pro Page
+2375 47       3490        LD   B,A
+2376 7E       3500 PGWR5  LD   A,(HL)
+2377 323C26   3510        LD   (BYTE),A    ;Byte zum Schreiben
+237A CDA426   3520        CALL TXBYTE
+237D 3A3C26   3530        LD   A,(BYTE)    ;ACK ?
+2380 FE00     3540        CP   0
+2382 3E06     3550        LD   A,6
+2384 C24C25   3560        JP   NZ,ERRORX   ;EEprom-Fehler #6
+2387 23       3570        INC  HL
+2388 10EC     3580        DJNZ PGWR5       ;weiterschreiben
+              3590 ;
+238A CD8926   3600        CALL STOPB       ;Stopbedingung
+238D 220520   3610        LD   (RAM),HL
+2390 3A0720   3620        LD   A,(BYTPG)   ;Anz. Bytes pro Page
+2393 1600     3630        LD   D,0
+2395 5F       3640        LD   E,A
+2396 2A0320   3650        LD   HL,(EENWT)
+2399 19       3660        ADD  HL,DE
+239A 220320   3670        LD   (EENWT),HL
+239D C1       3680        POP  BC
+239E C9       3690        RET
+              3700 ;
+              3710 ; Portscanner Adressen 50-57h
+              3720 ;
+239F DF       3730 SCAN   RST  #18
+23A0 6F72742D 3740        DEFM "ort-Scan"
+     5363616E
+23A8 8D       3750        DEFB #8D
+23A9 CD3E26   3760        CALL INIT        ;Init. PIO + I2C-Bus
+23AC 3E50     3770        LD   A,#50       ;Anfangsadresse
+23AE 0608     3780        LD   B,8         ;8 Adressen
+23B0 1600     3790        LD   D,0         ;gefundene EEproms
+23B2 4F       3800 SCAN1  LD   C,A         ;Akku "retten"
+23B3 CD6E26   3810        CALL STARTB
+23B6 79       3820        LD   A,C         ;Akku wiederherst.
+23B7 CB27     3830        SLA  A           ;1x linksschieben
+23B9 323C26   3840        LD   (BYTE),A    ;8Bit-Adresse -> TX
+23BC CDA426   3850        CALL TXBYTE
+23BF 3A3C26   3860        LD   A,(BYTE)    ;ACK=0, NACK!=0
+23C2 FE00     3870        CP   0
+23C4 202E     3880        JR   NZ,SCAN2    ;NACK empfangen
+              3890 ;
+23C6 DF       3900        RST  #18
+23C7 0D       3910        DEFB #0D
+23C8 45457072 3920        DEFM "EEprom auf Adresse"
+     6F6D2061
+     75662041
+     64726573
+     7365
+23DA A0       3930        DEFB #A0
+23DB 79       3940        LD   A,C         ;Akku wiederherst.
+23DC CD8301   3950        CALL OUTHEX
+23DF DF       3960        RST  #18
+23E0 68206765 3970        DEFM "h gefunden"
+     66756E64
+     656E
+23EA A0       3980        DEFB #A0
+23EB 14       3990        INC  D           ;Anz. EEproms ++
+23EC 7A       4000        LD   A,D
+23ED 3D       4010        DEC  A           ;Test auf D=1
+23EE 2004     4020        JR   NZ,SCAN2
+23F0 79       4030        LD   A,C         ;D==1 --> A=EEADR
+23F1 320220   4040        LD   (EEADR),A
+              4050 ;
+23F4 CD8926   4060 SCAN2  CALL STOPB
+23F7 79       4070        LD   A,C         ;Akku wiederherst.
+23F8 3C       4080        INC  A           ;naechste Adresse
+23F9 10B7     4090        DJNZ SCAN1       ;alle Adr. durch ?
+              4100 ;
+23FB 7A       4110        LD   A,D         ;gefundene EEproms
+23FC FE00     4120        CP   0
+23FE 2019     4130        JR   NZ,SCAN3
+2400 DF       4140        RST  #18
+2401 0D       4150        DEFB #0D
+2402 6B65696E 4160        DEFM "keine EEproms gefunden"
+     65204545
+     70726F6D
+     73206765
+     66756E64
+     656E
+2418 A0       4170        DEFB #A0
+              4180 ;
+2419 C31825   4190 SCAN3  JP   FERTIG
+              4200 ;
+              4210 ; Unterprogramme
+              4220 ;
+241C DF       4230 TYP    RST  #18
+241D 31203D20 4240        DEFM "1 = 24C01  - 128 Byte"
+     32344330
+     3120202D
+     20313238
+     20427974
+     65
+2432 0D       4250        DEFB #0D
+2433 32203D20 4260        DEFM "2 = 24C02  - 256 Byte"
+     32344330
+     3220202D
+     20323536
+     20427974
+     65
+2448 0D       4270        DEFB #0D
+2449 33203D20 4280        DEFM "3 = 24C04  - 512 Byte"
+     32344330
+     3420202D
+     20353132
+     20427974
+     65
+245E 0D       4290        DEFB #0D
+245F 34203D20 4300        DEFM "4 = 24C08  -   1 KByte"
+     32344330
+     3820202D
+     20202031
+     204B4279
+     7465
+2475 0D       4310        DEFB #0D
+2476 35203D20 4320        DEFM "5 = 24C16  -   2 KByte"
+     32344331
+     3620202D
+     20202032
+     204B4279
+     7465
+248C 0D       4330        DEFB #0D
+248D 36203D20 4340        DEFM "6 = 24C32  -   4 KByte"
+     32344333
+     3220202D
+     20202034
+     204B4279
+     7465
+24A3 0D       4350        DEFB #0D
+24A4 37203D20 4360        DEFM "7 = 24C64  -   8 KByte"
+     32344336
+     3420202D
+     20202038
+     204B4279
+     7465
+24BA 0D       4370        DEFB #0D
+24BB 38203D20 4380        DEFM "8 = 24C128 -  16 KByte"
+     32344331
+     3238202D
+     20203136
+     204B4279
+     7465
+24D1 0D       4390        DEFB #0D
+24D2 39203D20 4400        DEFM "9 = 24C256 -  32 KByte"
+     32344332
+     3536202D
+     20203332
+     204B4279
+     7465
+24E8 0D0D     4410        DEFB #0D,#0D
+24EA 5A203D20 4420        DEFM "Z = zurueck zum Hauptmenue"
+     7A757275
+     65636B20
+     7A756D20
+     48617570
+     746D656E
+     7565
+2504 0D0D     4430        DEFB #0D,#0D
+2506 5479703A 4440        DEFM "Typ:"
+250A A0       4450        DEFB #A0
+250B CF       4460        RST  #08         ;Tastaturabfrage
+250C FE03     4470        CP   3           ;Ctrl-C
+250E CA1026   4480        JP   Z,QUIT1
+2511 D7       4490        RST  #10         ;A auf BS
+2512 FE51     4500        CP   "Q          ;zum Monitor
+2514 CA0B26   4510        JP   Z,QUIT
+2517 C9       4520        RET
+              4530 ;
+              4540 ; Fertigmeldung
+              4550 ;
+2518 DF       4560 FERTIG RST  #18
+2519 0D0D     4570        DEFB #0D,#0D
+251B 46657274 4580        DEFM "Fertig"
+     6967
+2521 8D       4590        DEFB #8D
+2522 CD1726   4600        CALL PIEP        ;Tonausgabe
+2525 C30A20   4610        JP   START
+              4620 ;
+              4630 ; Fehlermeldung: EEprom nicht vorhanden
+              4640 ;
+2528 DF       4650 ERROR  RST  #18
+2529 0D0D     4660        DEFB #0D,#0D
+252B 4665686C 4670        DEFM "Fehler: EEprom nicht gefunden"
+     65723A20
+     45457072
+     6F6D206E
+     69636874
+     20676566
+     756E6465
+     6E
+2548 8D       4680        DEFB #8D
+2549 C30A20   4690        JP   START
+              4700 ;
+              4710 ; Fehlermeldung mit Fehler-Nummer in A
+              4720 ;
+254C DF       4730 ERRORX RST  #18
+254D 0D0D     4740        DEFB #0D,#0D
+254F 45457072 4750        DEFM "EEprom-Fehler Nr."
+     6F6D2D46
+     65686C65
+     72204E72
+     2E
+2560 A0       4760        DEFB #A0
+2561 CD8301   4770        CALL OUTHEX
+2564 DF       4780        RST  #18
+2565 8D       4790        DEFB #8D
+2566 C30A20   4800        JP   START
+              4810 ;
+              4820 ; Tastaturabfrage 4 x ASCII in HL
+              4830 ;
+2569 D5       4840 EINGAB PUSH DE
+256A ED5B0018 4850        LD   DE,(KURSOR) ;Kursorp. 1. Zeichen
+256E CF       4860 EINGA1 RST  #08         ;Tastatur -> A
+256F FE0D     4870        CP   #0D         ;Ende Eingabe ?
+2571 2814     4880        JR   Z,EINGA3
+2573 FE08     4890        CP   #08         ;Taste BS ?
+2575 280D     4900        JR   Z,EINGA2
+2577 FE03     4910        CP   3           ;Ctrl-C ?
+2579 CA1026   4920        JP   Z,QUIT1
+257C FE30     4930        CP   "0          ;A < "0 ?
+257E 38EE     4940        JR   C,EINGA1
+2580 FE47     4950        CP   "G          ;A >= "G ?
+2582 30EA     4960        JR   NC,EINGA1
+2584 D7       4970 EINGA2 RST  #10         ;A in ASCII auf BS
+2585 18E7     4980        JR   EINGA1
+2587 CD7201   4990 EINGA3 CALL INHEX       ;4xASCII -> HL
+258A D1       5000        POP  DE
+258B C9       5010        RET
+              5020 ;
+              5030 ; Eingabe RAM-Adresse -> (RAM)
+              5040 ;
+258C E5       5050 RAMADR PUSH HL
+258D DF       5060        RST  #18
+258E 52414D2D 5070        DEFM "RAM-Adresse:"
+     41647265
+     7373653A
+259A A0       5080        DEFB #A0
+259B CD6925   5090        CALL EINGAB
+259E 220520   5100        LD   (RAM),HL
+25A1 E1       5110        POP  HL
+25A2 C9       5120        RET
+              5130 ;
+              5140 ; Hexdump mit ASCII-Interpretation
+              5150 ;
+25A3 DF       5160 DUMP   RST  #18
+25A4 756D70   5170        DEFM "ump"
+25A7 0D0D     5180        DEFB #0D,#0D
+25A9 48657864 5190        DEFM "Hexdump ab"
+     756D7020
+     6162
+25B3 A0       5200        DEFB #A0
+25B4 CD8C25   5210        CALL RAMADR
+25B7 2A0520   5220        LD   HL,(RAM)
+25BA DF       5230        RST  #18
+25BB 0D8D     5240        DEFB #0D,#8D
+25BD 0610     5250 DUMP1  LD   B,#10       ;Summe Zeilen BS
+25BF C5       5260 DUMP2  PUSH BC
+25C0 010108   5270        LD   BC,#0801
+25C3 DF       5280        RST  #18
+25C4 202320   5290        DEFM " # "
+25C7 BE       5300        DEFB ">+#80
+25C8 CD9A01   5310        CALL OUTHL       ;OUT HL auf BS
+25CB DF       5320        RST  #18
+25CC 20A0     5330        DEFB " ," +#80   ;2 Leerzeichen
+25CE E5       5340        PUSH HL
+25CF 7E       5350 DUMP3  LD   A,(HL)
+25D0 CD8301   5360        CALL OUTHEX      ;OUT A HEX auf BS
+25D3 DF       5370        RST  #18
+25D4 A0       5380        DEFB " +#80      ;1 Leerzeichen
+25D5 A7       5390        AND  A
+25D6 ED52     5400        SBC  HL,DE
+25D8 19       5410        ADD  HL,DE
+25D9 23       5420        INC  HL
+25DA 2001     5430        JR   NZ,DUMP4
+25DC 0D       5440        DEC  C
+25DD 10F0     5450 DUMP4  DJNZ DUMP3
+              5460 ;
+25DF DF       5470        RST  #18
+25E0 BA       5480        DEFB ":+#80
+25E1 E1       5490        POP  HL
+25E2 0608     5500        LD   B,#08
+25E4 7E       5510 DUMP5  LD   A,(HL)
+25E5 FE20     5520        CP   #20
+25E7 3804     5530        JR   C,DUMP6     ;kein ASCII-Zeichen
+25E9 FE7F     5540        CP   #7F
+25EB 3802     5550        JR   C,DUMP7
+25ED 3E2E     5560 DUMP6  LD   A,".        ;Punkt
+25EF D7       5570 DUMP7  RST  #10         ;Ausgabe A ASCII
+25F0 23       5580        INC  HL
+25F1 10F1     5590        DJNZ DUMP5
+              5600 ;
+25F3 DF       5610        RST  #18
+25F4 3A       5620        DEFB ":
+25F5 8D       5630        DEFB #0D+#80     ;ENTER
+25F6 79       5640        LD   A,C
+25F7 C1       5650        POP  BC
+25F8 3D       5660        DEC  A
+25F9 C20A20   5670        JP   NZ,START    ;zum Menue
+25FC 10C1     5680        DJNZ DUMP2
+25FE CF       5690        RST  #08         ;Tastatureingabe
+25FF FE0D     5700        CP   #0D         ;Entertaste
+2601 28BA     5710        JR   Z,DUMP1     ;16 neue Zeilen
+2603 04       5720        INC  B
+2604 FE20     5730        CP   #20         ;Leertaste
+2606 28B7     5740        JR   Z,DUMP2     ;1 neue Zeile
+2608 C30A20   5750        JP   START       ;zum Menue
+              5760 ;
+              5770 ; Zurueck zum Monitor
+              5780 ;
+260B DF       5790 QUIT   RST  #18
+260C 756974   5800        DEFM "uit"
+260F A0       5810        DEFB #A0
+2610 DF       5820 QUIT1  RST  #18
+2611 0D0D8D   5830        DEFB #0D,#0D,#8D
+2614 C3FD07   5840        JP   GETCO       ;Monitor AC1
+              5850 ;
+              5860 ; Tonausgabe
+              5870 ;
+2617 C5       5880 PIEP   PUSH BC
+2618 0603     5890        LD   B,3
+261A C5       5900 PIEP1  PUSH BC
+261B 014000   5910        LD   BC,#0040
+261E CD2C26   5920        CALL UPTON
+2621 0132F0   5930        LD   BC,#F032
+2624 CD2C26   5940        CALL UPTON
+2627 C1       5950        POP  BC
+2628 10F0     5960        DJNZ PIEP1
+262A C1       5970        POP  BC
+262B C9       5980        RET
+              5990 ;
+262C F5       6000 UPTON  PUSH AF
+262D DB05     6010 UPTON1 IN   A,(#05)
+262F 1F       6020        RRA  ;B0 --> CY
+2630 3F       6030        CCF  ;CY = !CY
+2631 17       6040        RLA  ;CY --> B0
+2632 D305     6050        OUT  (#05),A
+2634 79       6060        LD   A,C
+2635 3D       6070 UPTON2 DEC  A
+2636 20FD     6080        JR   NZ,UPTON2
+2638 10F3     6090        DJNZ UPTON1
+263A F1       6100        POP  AF
+263B C9       6110        RET
+              6120 ;
+              6130 ;------ I2C Bibliothek Z80 PIO1 ------------
+              6140 ;
+              6150 ; Stand: 08.04.2023   G. Staffen   V 077
+              6160 ;
+              6170 ; CPU - Takt  4 MHz
+              6180 ; kont. RX - CLK 30,7 kHz - 3300 Byte/sek
+              6190 ; kont. TX - CLK 33,9 kHz - 3500 Byte/sek
+              6200 ;
+263C 0005     6210 DA     EQU  #05         ;PIO DatenPort
+263C 0007     6220 ST     EQU  #07         ;PIO SteuerPort
+              6230 ;
+263C 0004     6240 DB     EQU  4           ; SDA-Bit
+263C 0010     6250 DW     EQU  #10         ; Wertigkeit (16)
+263C 0001     6260 CB     EQU  1           ; SCL-Bit
+263C 0002     6270 CW     EQU  #02         ; Wertigkeit (2)
+              6280 ;
+              6290 ;
+              6300 ; PIO-B4 = SDA
+              6310 ; PIO-B1 = SCL
+              6320 ;
+              6330 ;-------------------------------------------
+              6340 ;
+              6350 ; Merkzellen
+              6360 ;
+263C 00       6370 BYTE   DEFB 0           ; Byte vom/zur Devic
+              6380 ;
+263D 00       6390 POBEL  DEFB 0           ; Merkzelle PortBelg
+              6400 ;
+              6410 ;+++++++++++++++++++++++++++++++++++++++++++
+              6420 ;
+              6430 ;            UP's
+              6440 ;
+              6450 ;------- Initialisierung PIO(1) ------------
+              6460 ;
+263E 3ECF     6470 INIT   LD   A,#CF       ; Mode3 Bit E/A
+2640 D307     6480        OUT  (ST),A      ; BIT Ein-/Ausgabe
+2642 3E84     6490        LD   A,#84       ; wie MONI
+2644 D307     6500        OUT  (ST),A
+2646 3E07     6510        LD   A,07        ; INT aus
+2648 D307     6520        OUT  (ST),A
+264A DB05     6530        IN   A,(DA)
+264C E6ED     6540        AND  #ED         ; loesche B1+B4
+264E D305     6550        OUT  (DA),A
+2650 323D26   6560        LD   (POBEL),A
+              6570 ;
+              6580 ; BUS - RESET
+              6590 ;
+2653 060A     6600        LD   B,#0A       ; 10*SCL L-H
+2655 CBCF     6610 RST1   SET  CB,A        ; SCL -> H
+2657 D305     6620        OUT  (DA),A      ; SCL L/H
+2659 D305     6630        OUT  (DA),A
+265B 00       6640        NOP  ;           ; SCL = H halten
+265C CB8F     6650        RES  CB,A        ; SCL -> L
+265E D305     6660        OUT  (DA),A      ; SCL H/L
+2660 10F3     6670        DJNZ RST1
+              6680 ;
+2662 CBCF     6690        SET  CB,A        ; SCL = H
+2664 D305     6700        OUT  (DA),A
+2666 CBE7     6710        SET  DB,A        ; SDA -> H
+2668 D305     6720        OUT  (DA),A
+266A 323D26   6730        LD   (POBEL),A
+266D C9       6740        RET
+              6750 ;
+              6760 ;-------------- Start Beding. --------------
+              6770 ;
+266E 3ECF     6780 STARTB LD   A,#CF       ; Mode3 Bit E/A
+2670 D307     6790        OUT  (ST),A
+2672 3E84     6800        LD   A,#84       ; B1+B4 = Ausgabe
+2674 D307     6810        OUT  (ST),A
+              6820 ;
+2676 3A3D26   6830        LD   A,(POBEL)
+2679 F612     6840        OR   CW+DW       ; SCL+SDA = H
+267B D305     6850        OUT  (DA),A
+267D CBA7     6860        RES  DB,A
+267F D305     6870        OUT  (DA),A      ; SDA = L
+2681 CB8F     6880        RES  CB,A
+2683 D305     6890        OUT  (DA),A      ; SDA + SCL = L
+2685 323D26   6900        LD   (POBEL),A
+2688 C9       6910        RET
+              6920 ;
+              6930 ;
+              6940 ;-------------- Stopp Beding. --------------
+              6950 ;
+2689 3ECF     6960 STOPB  LD   A,#CF       ; Mode3 Bit E/A
+268B D307     6970        OUT  (ST),A
+268D 3E84     6980        LD   A,#84       ; B1+B4 = Ausgabe
+268F D307     6990        OUT  (ST),A
+              7000 ;
+2691 3A3D26   7010        LD   A,(POBEL)
+2694 CBA7     7020        RES  DB,A        ; SDA = L
+2696 D305     7030        OUT  (DA),A
+2698 CBCF     7040        SET  CB,A        ; SCL = H
+269A D305     7050        OUT  (DA),A
+269C CBE7     7060        SET  DB,A        ; SDA -> H
+269E D305     7070        OUT  (DA),A
+26A0 323D26   7080        LD   (POBEL),A
+26A3 C9       7090        RET
+              7100 ;
+              7110 ;
+              7120 ;------ 1 Byte zum SLAVE senden ------------
+              7130 ;
+              7140 ;  INPUT - (BYTE) zu senden zum SLAVE
+              7150 ; OUTPUT - (BYTE) 00=ACK, <>0 NACK  v. SLAVE
+              7160 ;
+26A4 3ECF     7170 TXBYTE LD   A,#CF       ; Mode3 Bit E/A
+26A6 D307     7180        OUT  (ST),A
+26A8 3E84     7190        LD   A,#84       ; B1+B4 = Ausgabe
+26AA D307     7200        OUT  (ST),A
+              7210 ;
+26AC C5       7220        PUSH BC
+26AD 0608     7230        LD   B,8         ; 8 Bit
+26AF 3A3C26   7240        LD   A,(BYTE)    ; Byte holen
+26B2 4F       7250        LD   C,A         ; Byte zum senden
+26B3 3A3D26   7260        LD   A,(POBEL)
+26B6 E6ED     7270        AND  #ED         ; B1 + B4 = L
+26B8 CB8F     7280 TX1    RES  CB,A        ; SCL -> L
+26BA D305     7290        OUT  (DA),A      ; SCL H/L
+26BC CB21     7300        SLA  C           ; C7 -> CY
+26BE 3804     7310        JR   C,SDA2H
+26C0 CBA7     7320        RES  DB,A
+26C2 1802     7330        JR   TX2
+26C4 CBE7     7340 SDA2H  SET  DB,A
+26C6 D305     7350 TX2    OUT  (DA),A      ; SDA vor SCL L/H
+26C8 CBCF     7360        SET  CB,A        ; SCL -> H
+26CA D305     7370        OUT  (DA),A      ; SCL L/H
+26CC 10EA     7380        DJNZ TX1
+              7390 ;
+26CE CB8F     7400        RES  CB,A        ; SCL -> L
+26D0 D305     7410        OUT  (DA),A      ; SCL H/L
+26D2 4F       7420        LD   C,A         ; A retten (B1=L)
+              7430 ;
+26D3 3ECF     7440        LD   A,#CF       ; Mode3 Bit E/A
+26D5 D307     7450        OUT  (ST),A
+26D7 3E94     7460        LD   A,#94       ; Bit SDA INP (H)
+26D9 D307     7470        OUT  (ST),A
+              7480 ;
+              7490 ; Bestaetigung SLAVE abfragen  (ACK / NACK)
+              7500 ;
+26DB 79       7510        LD   A,C         ; A zurueck (B1=L)
+26DC CBCF     7520        SET  CB,A        ; SCL = H (B1)
+26DE D305     7530        OUT  (DA),A      ; SCL L/H
+26E0 DB05     7540        IN   A,(DA)      ; SDA lesen (=L?)
+26E2 E610     7550        AND  DW          ; ACK / NACK ?
+26E4 323C26   7560        LD   (BYTE),A    ; Rueckgabewert
+26E7 79       7570        LD   A,C         ; A zurueck (B1=L)
+26E8 D305     7580        OUT  (DA),A      ; SCL H/L
+26EA 323D26   7590        LD   (POBEL),A
+              7600 ;
+26ED 3ECF     7610        LD   A,#CF       ; Mode3 Bit E/A
+26EF D307     7620        OUT  (ST),A
+26F1 3E84     7630        LD   A,#84       ; B1+B4 = Ausgabe
+26F3 D307     7640        OUT  (ST),A
+              7650 ;
+26F5 C1       7660        POP  BC
+26F6 C9       7670        RET
+              7680 ;
+              7690 ;
+              7700 ;-------- 1 Byte lesen vom SLAVE -----------
+              7710 ;
+              7720 ;  INPUT (BYTE) Quitt. Master 0=ACK, FF=NACK
+              7730 ; OUTPUT (BYTE) gelesenes Byte vom SLAVE
+              7740 ;
+26F7 3ECF     7750 RXBYTE LD   A,#CF       ; Mode3 Bit E/A
+26F9 D307     7760        OUT  (ST),A
+26FB 3E94     7770        LD   A,#94       ; Bit SDA INP (H)
+26FD D307     7780        OUT  (ST),A      ; SDA = H
+              7790 ;
+26FF C5       7800        PUSH BC
+2700 0608     7810        LD   B,8
+2702 3A3D26   7820        LD   A,(POBEL)
+2705 CBCF     7830 DA1    SET  CB,A        ; B1 = H
+2707 D305     7840        OUT  (DA),A      ; SCL L/H
+2709 DB05     7850        IN   A,(DA)      ; Bit4=SDA lesen
+270B 17       7860        RLA  ;           ; A4 -> A5
+270C 17       7870        RLA  ;           ; A5 -> A6
+270D 17       7880        RLA  ;           ; A6 -> A7
+270E 17       7890        RLA  ;           ; A7 -> Cy
+270F 3A3D26   7900        LD   A,(POBEL)
+2712 CB8F     7910        RES  CB,A        ; B1 = L
+2714 D305     7920        OUT  (DA),A      ; SCL H/L
+2716 CB11     7930        RL   C           ; Cy -> C0
+2718 10EB     7940        DJNZ DA1
+              7950 ;
+              7960 ; Bestaetigung AC1 senden (SDA=L)
+              7970 ;
+271A 3ECF     7980        LD   A,#CF       ; Mode3 Bit E/A
+271C D307     7990        OUT  (ST),A
+271E 3E84     8000        LD   A,#84       ; B1+B4 = Ausgabe
+2720 D307     8010        OUT  (ST),A
+              8020 ;
+2722 3A3C26   8030        LD   A,(BYTE)    ; 0=ACK, FF=NACK
+2725 E610     8040        AND  DW          ; A1 = L (SCL)
+2727 47       8050        LD   B,A         ; Bit4 sichern
+2728 3A3D26   8060        LD   A,(POBEL)
+272B CBA7     8070        RES  DB,A        ; B4 muss L wg. OR
+272D B0       8080        OR   B
+272E D305     8090        OUT  (DA),A      ; SDA vor SCL L/H
+2730 F602     8100        OR   CW          ; setze A1 (SCL=H)
+2732 D305     8110        OUT  (DA),A      ; SCL L/H
+2734 00       8120        NOP
+2735 D305     8130        OUT  (DA),A      ; H strecken 8 mysek
+2737 CB8F     8140        RES  CB,A
+2739 D305     8150        OUT  (DA),A      ; SCL H/L
+273B CBA7     8160        RES  DB,A
+273D D305     8170        OUT  (DA),A      ; SDA H/L
+              8180 ;
+273F 79       8190        LD   A,C         ; Byte fertig
+2740 323C26   8200        LD   (BYTE),A    ; Uebergabe in (BYTE
+              8210 ;
+2743 C1       8220        POP  BC
+2744 C9       8230        RET
+              8240 ;
+              8250 ;-------------------------------------------
+              8260 ;
+              8270 ; Konvertierung 16-bit Integer nach ASCII
+              8280 ; Quelle:
+              8290 ; map.grauw.nl/sources/external/z80bits.html
+              8300 ; Autor:
+              8310 ; Milos Bazelides
+              8320 ;
+2745 01F0D8   8330 HL2DEC LD   BC,55536
+2748 CD5D27   8340        CALL HL2DE1
+274B 0118FC   8350        LD   BC,64536
+274E CD5D27   8360        CALL HL2DE1
+2751 019CFF   8370        LD   BC,65436
+2754 CD5D27   8380        CALL HL2DE1
+2757 0EF6     8390        LD   C,246
+2759 CD5D27   8400        CALL HL2DE1
+275C 48       8410        LD   C,B
+275D 3E2F     8420 HL2DE1 LD   A,47
+275F 3C       8430 HL2DE2 INC  A
+2760 09       8440        ADD  HL,BC
+2761 38FC     8450        JR   C,HL2DE2
+2763 ED42     8460        SBC  HL,BC
+2765 12       8470        LD   (DE),A
+2766 13       8480        INC  DE
+2767 C9       8490        RET
+              8500 ;
+              8510 ;-------------------------------------------
+              8520 ;
+ 
+ 
+        ***** 0000 Errors *****

@@ -1,0 +1,9 @@
+*.LST text eol=crlf
+*.Z80 binary
+*.BIN binary
+EEPR13-6.LST linguist-language=Assembly linguist-detectable
+EEPR13-6.Z80 linguist-generated
+EEPR13-6.BIN linguist-generated
+EEPR13-2.Z80 linguist-generated
+EEPR13-2.BIN linguist-generated
+
