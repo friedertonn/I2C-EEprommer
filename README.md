@@ -1,6 +1,6 @@
 # I2C-EEprommer für den AC1
 
-![](https://www.ftonn.de/GIT-Projekte/I2C-EEprommer/Chipkartenleser.jpg)
+![Chipkartenleser](https://github.com/friedertonn/I2C-EEprommer/blob/main/Eagle_und_Fotos/Chipkartenleser.jpg?raw=true)
 
 Gerd Staffen hat für den AC1-Computer eine Bibliothek in Z80-Assembler geschrieben, die eine universelle
 I2C-Schnittstelle für verschiedene Programmiersprachen (Z80-Assembler, Basic, Pascal) bereitstellt.
@@ -18,7 +18,7 @@ Die Bibliothek stellt folgende Funktionen bereit:
 Für den Anschluss von I2C-Komponenten wird eine Außenbeschaltung der PIO mit 
 4 Widerständen empfohlen:
 
-![](https://www.ftonn.de/GIT-Projekte/I2C-EEprommer/i2c_eeprommer.png)
+![Schaltplan](https://github.com/friedertonn/I2C-EEprommer/blob/main/Eagle_und_Fotos/i2c_eeprommer.png?raw=true)
 
 Auf der Basis dieser Bibliothek wurde ein Programmiersoftware für I2C-EEproms in Z80-Assembler
 geschrieben, welches sich in der Bedienung an den EEprommer von Bernd Jahn
@@ -107,7 +107,7 @@ Folgende Funktionen sind implementiert:
 * Schreiben eines EEproms ab einer vorgegebenen RAM-Adresse
 * Lesen eines EEproms in einen RAM-Adressbereich
 * Vergleichendes Lesen mit einem RAM-Adressbereich
-* Ermittlung der EEprom-Adresse, falls sie von 50h abweicht
+* Feststellung der EEprom-Adresse, falls sie von 50h abweicht
 * Memory-Dump auf dem Bildschirm
 
 Die Startadresse des Programms ist 2000h. Sie kann bei Bedarf im Quellcode geändert werden.
